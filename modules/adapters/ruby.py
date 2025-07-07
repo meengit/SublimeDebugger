@@ -21,26 +21,36 @@ class Ruby(dap.Adapter):
 		if not rdbg:
 			raise core.Error('You must install the `rdbg` gem. Install it by running `gem install rdbg`')
 
-		port = util.get_open_port()
-		command = [
-			rdbg,
-			'--open',
-			'--host',
-			'localhost',
-			'--port',
-			f'{port}',
-			'-c',
-			'--',
-		]
+		if configuration['port'] is not None and configuration['port'] > 0:
+			port = configuration['port']
+		else:
+			port = util.get_open_port()
+
+		if configuration['request'] is 'attach':
+			command = [
+				rdbg, '-A', f'{port}'
+			]
+		else:
+			command = [
+				rdbg,
+				'--open',
+				'--host',
+				'localhost',
+				'--port',
+				f'{port}',
+				'-c',
+				'--',
+			]
 
 		configuration['command'] = configuration.get('command') or 'ruby'
 
 		script = configuration['script']
 
-		if configuration.get('useBundler'):
-			command.extend(['bundle', 'exec', configuration['command'], script])
-		else:
-			command.extend([configuration['command'], script])
+		if configuration['request'] is not 'attach':
+			if configuration.get('useBundler'):
+				command.extend(['bundle', 'exec', configuration['command'], script])
+			else:
+				command.extend([configuration['command'], script])
 
 		def stdout(data: str):
 			console.log('stdout', data)
