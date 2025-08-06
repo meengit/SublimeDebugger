@@ -17,20 +17,20 @@ class Ruby(dap.Adapter):
 	)
 
 	async def start(self, console: dap.Console, configuration: dap.ConfigurationExpanded):
-		rdbg = shutil.which('rdbg')
+		rdbg = configuration.get('rdbgPath', shutil.which('rdbg'))
+
 		if not rdbg:
 			raise core.Error('You must install the `rdbg` gem. Install it by running `gem install rdbg`')
 
-		if configuration['port'] is not None and configuration['port'] > 0:
-			port = configuration['port']
-		else:
-			port = util.get_open_port()
+		cwd = configuration.get('cwd', None)
+		env = configuration.get('env', {})
+		port = configuration.get('port', util.get_open_port())
 
-		if configuration['request'] is 'attach':
+		if configuration['request'] == 'attach':
 			command = [
 				rdbg, '-A', f'{port}'
 			]
-		else:
+		elif configuration['request'] == 'launch':
 			command = [
 				rdbg,
 				'--open',
@@ -42,15 +42,18 @@ class Ruby(dap.Adapter):
 				'--',
 			]
 
-		configuration['command'] = configuration.get('command') or 'ruby'
+			configuration['command'] = configuration.get('command') or 'ruby'
+			script = configuration.get('script', '')
 
-		script = configuration['script']
-
-		if configuration['request'] is not 'attach':
-			if configuration.get('useBundler'):
+			if configuration.get('useBundler') and script != None:
 				command.extend(['bundle', 'exec', configuration['command'], script])
 			else:
 				command.extend([configuration['command'], script])
+
+			if 'args' in configuration and configuration['args']:
+				command.extend(configuration['args'])
+		else:
+			raise core.Error(f"Your request must be 'launch' or 'attach', found '{configuration['request']}'.")
 
 		def stdout(data: str):
 			console.log('stdout', data)
@@ -62,4 +65,4 @@ class Ruby(dap.Adapter):
 			else:
 				console.log('stderr', data)
 
-		return dap.SocketTransport(port=port, command=command, stdout=stdout, stderr=stderr)
+		return dap.SocketTransport(port=port, command=command, cwd=cwd, env=env, stdout=stdout, stderr=stderr)
