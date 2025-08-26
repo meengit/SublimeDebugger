@@ -23,7 +23,7 @@ class Ruby(dap.Adapter):
 			raise core.Error('You must install the `rdbg` gem. Install it by running `gem install rdbg`')
 
 		cwd = configuration.get('cwd', None)
-		env = configuration.get('env', {})
+		env = configuration.get('env', None)
 		port = configuration.get('port', util.get_open_port())
 
 		if configuration['request'] == 'attach':
@@ -65,4 +65,17 @@ class Ruby(dap.Adapter):
 			else:
 				console.log('stderr', data)
 
-		return dap.SocketTransport(port=port, command=command, cwd=cwd, env=env, stdout=stdout, stderr=stderr)
+		cargs = {
+			"port": port,
+			"command": command,
+			"stdout": stdout,
+			"stderr": stderr
+		}
+
+		if cwd is not None:
+			cargs["cwd"] = cwd
+
+		if env is not None:
+			cargs["env"] = env
+
+		return dap.SocketTransport(**cargs)
